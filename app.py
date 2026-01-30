@@ -30,7 +30,7 @@ def check_similarity(texts):
 
 # 3. UI 구성
 st.set_page_config(page_title="2025 생기부 체크", layout="wide")
-st.title("🏫 2025 생기부 기재요령 검토기")
+st.title("🏫 생기부 기재요령 검토기")
 
 with st.sidebar:
     st.header("⚙️ 설정")
@@ -93,4 +93,5 @@ if uploaded_files:
                         st.code(response.text, language="text") 
                         st.caption("위 박스 우측 상단의 아이콘을 클릭하면 바로 복사됩니다.")
     else:
+
         st.balloons()
