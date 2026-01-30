@@ -29,15 +29,18 @@ def check_similarity(texts):
     return duplicates
 
 # 3. UI 구성
-st.set_page_config(page_title="2025 생기부 체크", layout="wide")
+st.set_page_config(page_title="생기부 기재요령 검토기", layout="wide")
 st.title("🏫 생기부 기재요령 검토기")
 
 with st.sidebar:
     st.header("⚙️ 설정")
     if not GOOGLE_API_KEY:
-        api_input = st.text_input("Gemini API Key", type="password")
-        if api_input: genai.configure(api_key=api_input)
+        api_input = st.text_input("Gemini API Key (무료 버전 가능)", type="password")
+        if api_input: 
+            genai.configure(api_key=api_input)
+            GOOGLE_API_KEY = api_input
     st.info("지침: 95% 중복, 명사형 종결, 영문/기호 제한 등")
+    st.caption("⚠️ 무료 API는 분당 요청 횟수 제한이 있을 수 있습니다.")
 
 uploaded_files = st.file_uploader("PDF 업로드 (여러 명 가능)", type="pdf", accept_multiple_files=True)
 
@@ -76,22 +79,31 @@ if uploaded_files:
             info = issue_students[name]
             with tab:
                 if name in dup_names:
-                    st.error("🚨 유사도 95% 이상 감지됨")
+                    st.error("🚨 유사도 95% 이상 감지됨 (다른 학생과 내용이 거의 일치합니다)")
                 
                 c1, c2 = st.columns(2)
-                with c1: st.warning(f"영문 위반: {info['eng']}") if info['eng'] else st.write("영문 지침 준수")
-                with c2: st.warning(f"기호 위반: {info['sym']}") if info['sym'] else st.write("기호 지침 준수")
+                with c1: st.warning(f"영문 위반: {info['eng']}") if info['eng'] else st.success("영문 지침 준수")
+                with c2: st.warning(f"기호 위반: {info['sym']}") if info['sym'] else st.success("기호 지침 준수")
 
                 if st.button(f"🪄 AI 수정안 생성 ({name})", key=f"ai_{name}"):
-                    with st.spinner("다듬는 중..."):
-                        model = genai.GenerativeModel('gemini-1.5-flash')
-                        prompt = f"아래 생기부를 1)명사형 종결 2)금지어 제거 3)특수기호 정제하여 '수정된 본문'만 출력해줘:\n\n{info['content']}"
-                        response = model.generate_content(prompt)
-                        
-                        # 수정된 텍스트 출력 및 복사 기능
-                        st.markdown("### ✨ AI 수정 제안")
-                        st.code(response.text, language="text") 
-                        st.caption("위 박스 우측 상단의 아이콘을 클릭하면 바로 복사됩니다.")
+                    if not GOOGLE_API_KEY:
+                        st.error("API 키를 먼저 입력해주세요.")
+                    else:
+                        with st.spinner("무료 버전 제미나이로 교정 중..."):
+                            try:
+                                # 무료 버전에서 가장 안정적인 모델명 사용
+                                model = genai.GenerativeModel('gemini-1.5-flash')
+                                prompt = f"다음은 학생의 생활기록부 내용입니다. 1) 문장을 ~함, ~임과 같은 명사형 종결로 수정하고, 2) 허용되지 않은 영문이나 기호를 정제해서 '수정된 본문'만 보여주세요:\n\n{info['content']}"
+                                response = model.generate_content(prompt)
+                                
+                                st.markdown("### ✨ AI 수정 제안")
+                                st.code(response.text, language="text") 
+                                st.caption("오른쪽 상단 아이콘을 눌러 복사할 수 있습니다.")
+                            except Exception as e:
+                                if "429" in str(e):
+                                    st.error("너무 빠른 요청입니다. 잠시 후 다시 시도해주세요.")
+                                else:
+                                    st.error(f"에러가 발생했습니다: {e}")
     else:
-
         st.balloons()
+        st.success("모든 서류가 지침을 준수하고 있습니다!")
